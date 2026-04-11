@@ -1,0 +1,40 @@
+# ============================================================
+# AIsurvey.me v2.0 — Docker Compose (Development)
+# ============================================================
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - '3000:3000'
+    environment:
+      - DATABASE_URL=postgresql://aisurvey:aisurvey_pass@db:5432/aisurvey_v2
+      - NEXTAUTH_SECRET=development-secret-change-in-production
+      - NEXTAUTH_URL=http://localhost:3000
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: aisurvey
+      POSTGRES_PASSWORD: aisurvey_pass
+      POSTGRES_DB: aisurvey_v2
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U aisurvey']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:
