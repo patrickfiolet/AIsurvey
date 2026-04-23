@@ -1,131 +1,131 @@
-/**
- * Database Seed Script
- * Creates admin user and test survey with questions.
- *
- * Usage: npx tsx scripts/seed.ts
- */
 import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 
 const prisma = new PrismaClient()
 
 async function main() {
-  console.log('\ud83c\udf31 Seeding database...')
-
-  // Create admin user
-  const adminPassword = await bcrypt.hash('admin123', 12)
-  const admin = await prisma.user.upsert({
-    where: { email: 'admin@aisurvey.me' },
+  const hashedPassword = await bcrypt.hash('johndoe123', 12)
+  
+  await prisma.user.upsert({
+    where: { email: 'john@doe.com' },
     update: {},
     create: {
-      email: 'admin@aisurvey.me',
+      email: 'john@doe.com',
       name: 'Admin',
-      password: adminPassword,
+      password: hashedPassword,
       role: 'ADMIN',
     },
   })
-  console.log('\u2713 Admin user created:', admin.email)
 
-  // Create editor user
-  const editorPassword = await bcrypt.hash('editor123', 12)
-  const editor = await prisma.user.upsert({
-    where: { email: 'editor@aisurvey.me' },
+  const adminUser = await prisma.user.findUnique({ where: { email: 'john@doe.com' } })
+  if (!adminUser) throw new Error('Admin user not found')
+
+  // Create default survey
+  const survey = await prisma.survey.upsert({
+    where: { id: 1 },
     update: {},
     create: {
-      email: 'editor@aisurvey.me',
-      name: 'Editor',
-      password: editorPassword,
-      role: 'EDITOR',
+      title: 'Kennisoverdracht Survey',
+      description: 'Help ons uw organisatie beter te begrijpen op het gebied van kennisoverdracht.',
+      welcomeText: 'Welkom bij onze AI-gedreven survey. Uw antwoorden helpen ons waardevolle inzichten te verkrijgen over kennisoverdracht binnen uw organisatie.',
+      thankYouText: 'Dank u voor uw deelname! Uw antwoorden zijn opgeslagen en zullen bijdragen aan waardevolle inzichten.',
+      isActive: true,
+      isAnonymous: false,
+      surveyType: 'STATIC',
+      createdById: adminUser.id,
     },
   })
-  console.log('\u2713 Editor user created:', editor.email)
 
-  // Create Conversational Survey (default template)
-  const defaultSurvey = await prisma.survey.create({
-    data: {
-      title: 'IT Organization Assessment',
-      description: 'AI-driven assessment of your IT organization and knowledge landscape',
-      type: 'CONVERSATIONAL',
-      userId: admin.id,
-      welcomeText: 'Welcome! This AI-driven assessment will help us understand your organization. I will ask you 10 questions about your IT landscape, challenges, and vision.',
-      thankYouText: 'Thank you for participating! Your insights are invaluable for understanding your organization.',
-    },
-  })
-  console.log('\u2713 Default conversational survey created:', defaultSurvey.title)
+  // Create 10 default questions
+  const questions = [
+    'Wat is uw functie binnen de organisatie?',
+    'Hoe lang werkt u al bij deze organisatie?',
+    'Hoe wordt kennis momenteel gedeeld binnen uw team?',
+    'Welke uitdagingen ervaart u bij het overdragen van kennis?',
+    'Welke tools of systemen gebruikt u voor kennisdeling?',
+    'Hoe vaak vindt er formele kennisoverdracht plaats?',
+    'Wat zijn de belangrijkste kennisgebieden die verloren dreigen te gaan?',
+    'Hoe zou u de kenniscultuur binnen uw organisatie beschrijven?',
+    'Welke verbeteringen zou u voorstellen voor kennisoverdracht?',
+    'Wat is uw ervaring met AI-ondersteunde kennissystemen?',
+  ]
 
-  // Create SAP Knowledge Survey (SAP template)
-  const sapSurvey = await prisma.survey.create({
-    data: {
-      title: 'SAP Knowledge Extraction',
-      description: 'Targeted knowledge capture for SAP consultants and key users',
-      type: 'CONVERSATIONAL',
-      templateId: 'sap-knowledge',
-      templateName: 'SAP Knowledge Extraction',
-      userId: admin.id,
-      welcomeText: 'Welcome! This session will help us capture your SAP expertise and tacit knowledge.',
-      thankYouText: 'Thank you! Your SAP knowledge has been captured for organizational knowledge retention.',
-    },
-  })
-  console.log('\u2713 SAP knowledge survey created:', sapSurvey.title)
-
-  // Create Static Survey with questions
-  const staticSurvey = await prisma.survey.create({
-    data: {
-      title: 'Quick IT Assessment',
-      description: 'A brief static survey about your IT landscape',
-      type: 'STATIC',
-      userId: admin.id,
-      questions: {
-        create: [
-          { text: 'What is your organization\'s core business?', type: 'OPEN_TEXT', order: 1 },
-          { text: 'Which IT systems do you currently use?', type: 'OPEN_TEXT', order: 2 },
-          { text: 'How satisfied are you with your IT?', type: 'RATING_SCALE', order: 3 },
-          { text: 'What are your biggest IT challenges?', type: 'OPEN_TEXT', order: 4 },
-          { text: 'Do you use cloud services?', type: 'YES_NO', order: 5 },
-        ],
+  for (let i = 0; i < questions.length; i++) {
+    await prisma.question.upsert({
+      where: { id: i + 1 },
+      update: {},
+      create: {
+        surveyId: survey.id,
+        title: questions[i],
+        type: 'OPEN_TEXT',
+        isRequired: true,
+        order: i + 1,
       },
+    })
+  }
+
+  // Create conversational survey
+  await prisma.survey.upsert({
+    where: { id: 2 },
+    update: {},
+    create: {
+      title: 'Conversationeel Interview',
+      description: 'Een AI-gestuurd conversationeel interview over kennisoverdracht.',
+      welcomeText: 'Welkom! Ik ga u een aantal vragen stellen in een natuurlijk gesprek.',
+      thankYouText: 'Bedankt voor het gesprek! Uw inzichten zijn zeer waardevol.',
+      isActive: true,
+      isAnonymous: false,
+      surveyType: 'CONVERSATIONAL',
+      createdById: adminUser.id,
     },
   })
-  console.log('\u2713 Static survey with questions created:', staticSurvey.title)
 
-  // Create Voice Agent Questions
-  await prisma.voiceAgentQuestion.createMany({
-    data: [
-      { questionText: 'Kunt u kort uw organisatie beschrijven?', order: 1, surveyId: defaultSurvey.id },
-      { questionText: 'Welke IT-systemen gebruikt u momenteel?', order: 2, surveyId: defaultSurvey.id },
-      { questionText: 'Wat zijn de grootste uitdagingen in uw IT-omgeving?', order: 3, surveyId: defaultSurvey.id },
-      { questionText: 'Hoe gaat uw organisatie om met cybersecurity?', order: 4, surveyId: defaultSurvey.id },
-      { questionText: 'Wat is uw visie op AI en automatisering?', order: 5, surveyId: defaultSurvey.id },
-    ],
-  })
-  console.log('\u2713 Voice agent questions created')
-
-  // Create sample Expert Profile
-  await prisma.expertProfile.create({
-    data: {
-      name: 'Jan de Vries',
-      email: 'jan@example.com',
-      role: 'SAP FI/CO Consultant',
-      department: 'IT',
-      organization: 'Example Corp',
-      knowledgeDomains: ['SAP FI', 'SAP CO', 'Month-end closing'],
-      riskLevel: 'HIGH',
-      notes: 'Senior consultant with 15 years of SAP experience. Retirement planned in 2027.',
+  // Create Sales Kennisborging survey (Conversationeel)
+  const salesSurvey = await prisma.survey.upsert({
+    where: { id: 3 },
+    update: {},
+    create: {
+      title: 'Sales Kennisborging — Accountkennis & Relatiemanagement',
+      description: 'Deze survey legt de impliciete kennis van ervaren salesprofessionals vast over hun accounts, klantrelaties, contracthistorie en marktinzichten — voordat deze kennis verloren gaat.',
+      welcomeText: 'Welkom bij de Sales Kennisborging survey. Het doel is om uw waardevolle accountkennis en jarenlange ervaring vast te leggen, zodat deze kennis behouden blijft voor de organisatie. Neem de tijd om zo volledig mogelijk te antwoorden.',
+      thankYouText: 'Hartelijk dank voor het delen van uw kennis! Uw inzichten zijn van onschatbare waarde voor de continuïteit van onze klantrelaties.',
+      isActive: true,
+      isAnonymous: false,
+      surveyType: 'CONVERSATIONAL',
+      createdById: adminUser.id,
     },
   })
-  console.log('\u2713 Sample expert profile created')
 
-  console.log('\n\u2705 Database seeded successfully!')
-  console.log('\n\ud83d\udd11 Login credentials:')
-  console.log('   Admin: admin@aisurvey.me / admin123')
-  console.log('   Editor: editor@aisurvey.me / editor123')
+  const salesQuestions = [
+    'Hoe zou je de relatie met je belangrijkste accounts omschrijven, en wat maakt die relatie uniek?',
+    'Waarom zijn de huidige contractvoorwaarden zo opgesteld, en wat waren de belangrijkste discussiepunten tijdens de onderhandeling?',
+    'Wat heeft er in het verleden gespeeld bij dit account — wat ging er fout en hoe is het opgelost?',
+    'Wie beslist er écht bij de klant, en welke interne politiek speelt er?',
+    'Welke afspraken of werkwijzen zijn ooit zo ontstaan, en weet je nog waarom?',
+    'Wat speelt er op dit moment bij het account, en welke kansen en bedreigingen zie je op de lange termijn?',
+    'Wat speelt er in de markt of branche van de klant dat invloed heeft op jullie samenwerking?',
+    'Welke informatie over dit account staat niet in het CRM, maar zou een opvolger absoluut moeten weten?',
+    'Als jij morgen zou stoppen, wat zou er als eerste misgaan bij dit account?',
+    'Welke lessen heb je geleerd in de omgang met dit account die je een opvolger als eerste zou meegeven?',
+  ]
+
+  for (let i = 0; i < salesQuestions.length; i++) {
+    await prisma.question.upsert({
+      where: { id: 100 + i + 1 },
+      update: {},
+      create: {
+        surveyId: salesSurvey.id,
+        title: salesQuestions[i],
+        type: 'OPEN_TEXT',
+        isRequired: true,
+        order: i + 1,
+      },
+    })
+  }
+
+  console.log('Seed completed successfully!')
 }
 
 main()
-  .catch((e) => {
-    console.error('\u274c Seed error:', e)
-    process.exit(1)
-  })
-  .finally(async () => {
-    await prisma.$disconnect()
-  })
+  .catch((e) => { console.error(e); process.exit(1) })
+  .finally(async () => { await prisma.$disconnect() })

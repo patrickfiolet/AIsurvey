@@ -1,6 +1,3 @@
-/**
- * NextAuth.js API Route Handler
- */
 import NextAuth from 'next-auth'
 import { authOptions } from '@/lib/auth'
 

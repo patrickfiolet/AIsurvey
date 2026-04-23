@@ -1,54 +1,26 @@
-/**
- * Safe Seed Script — No duplicates
- * Only creates records if they don't already exist.
- *
- * Usage: npx tsx scripts/safe-seed.ts
- */
-import { PrismaClient } from '@prisma/client'
-import bcrypt from 'bcryptjs'
+import fs from "fs";
+import path from "path";
+import { execSync } from "child_process";
 
-const prisma = new PrismaClient()
+try {
+  const seedFile = path.resolve(process.cwd(), "scripts/seed.ts");
+  const content = fs.readFileSync(seedFile, "utf-8");
 
-async function main() {
-  console.log('\ud83c\udf31 Safe seeding database...')
+  const forbiddenPatterns = [
+    /prisma\.\w+\.delete\(/,
+    /prisma\.\w+\.deleteMany\(/,
+  ];
 
-  const adminExists = await prisma.user.findUnique({ where: { email: 'admin@aisurvey.me' } })
-  if (!adminExists) {
-    const password = await bcrypt.hash('admin123', 12)
-    await prisma.user.create({
-      data: { email: 'admin@aisurvey.me', name: 'Admin', password, role: 'ADMIN' },
-    })
-    console.log('\u2713 Admin user created')
-  } else {
-    console.log('\u2022 Admin user already exists')
+  const violations = forbiddenPatterns.filter((pattern) => pattern.test(content));
+
+  if (violations.length > 0) {
+    console.error("Seed aborted: seed.ts contains prisma.delete or prisma.deleteMany calls.");
+    console.error("Remove all delete operations before seeding to avoid deleting production data.");
+    console.error("Do not modify this file to bypass this check in development environment as production and deployment database can be shared.");
+    process.exit(1);
   }
 
-  const surveyCount = await prisma.survey.count()
-  if (surveyCount === 0) {
-    const admin = await prisma.user.findUnique({ where: { email: 'admin@aisurvey.me' } })
-    if (admin) {
-      await prisma.survey.create({
-        data: {
-          title: 'IT Organization Assessment',
-          description: 'Default conversational assessment',
-          type: 'CONVERSATIONAL',
-          userId: admin.id,
-        },
-      })
-      console.log('\u2713 Default survey created')
-    }
-  } else {
-    console.log(`\u2022 ${surveyCount} surveys already exist`)
-  }
-
-  console.log('\n\u2705 Safe seed completed!')
+} catch (err: any) {
 }
 
-main()
-  .catch((e) => {
-    console.error('\u274c Safe seed error:', e)
-    process.exit(1)
-  })
-  .finally(async () => {
-    await prisma.$disconnect()
-  })
+execSync("tsx --require dotenv/config scripts/seed.ts", { stdio: "inherit" });

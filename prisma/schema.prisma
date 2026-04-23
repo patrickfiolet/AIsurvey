@@ -1,13 +1,5 @@
-// ============================================================
-// AIsurvey.me v2.0 — Prisma Schema
-// ============================================================
-// Extends v1.69 with: Knowledge Graph, ExpertProfile,
-// Tacit Knowledge Score, Domain Templates, Decision Context
-// ============================================================
-
 generator client {
-  provider      = "prisma-client-js"
-  binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x", "linux-musl-openssl-3.0.x"]
+  provider = "prisma-client-js"
 }
 
 datasource db {
@@ -15,389 +7,250 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ============================================================
-// USER MODEL
-// ============================================================
 model User {
-  id         Int       @id @default(autoincrement())
-  email      String    @unique
+  id         Int         @id @default(autoincrement())
+  email      String      @unique
   name       String?
   password   String
-  role       UserRole  @default(ADMIN)
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  role       UserRole    @default(ADMIN)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
   surveys    Survey[]
   agentCalls AgentCall[]
 
   @@map("users")
 }
 
-// ============================================================
-// SURVEY MODEL — Core of the system
-// ============================================================
 model Survey {
-  id            Int        @id @default(autoincrement())
-  title         String     @default("AI Survey")
-  description   String     @default("Help us better understand your organization")
-  welcomeText   String     @default("Welcome to our AI-driven survey. Your answers help us gain valuable insights.")
-  thankYouText  String     @default("Thank you for completing this survey! Your responses have been successfully saved.")
-  isActive      Boolean    @default(true)
-  type          SurveyType @default(CONVERSATIONAL)
-  // v2.0: Domain template support
-  templateId    String?    // e.g. "sap-knowledge", "healthcare", "it-operations"
-  templateName  String?
-  userId        Int
-  user          User       @relation(fields: [userId], references: [id])
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
-  questions     Question[]
-  responses     Response[]
-  conversations Conversation[]
-  analyses      Analysis[]
+  id                  Int                  @id @default(autoincrement())
+  title               String               @default("AI Survey")
+  description         String               @default("Help ons uw organisatie beter te begrijpen")
+  welcomeText         String               @default("Welkom bij onze AI-gedreven survey. Uw antwoorden helpen ons waardevolle inzichten te verkrijgen.")
+  thankYouText        String               @default("Dank u voor uw deelname! Uw antwoorden zijn opgeslagen en zullen bijdragen aan waardevolle inzichten.")
+  isActive            Boolean              @default(true)
+  isAnonymous         Boolean              @default(false)
+  surveyType          SurveyType           @default(STATIC)
+  createdById         Int?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  createdBy           User?                @relation(fields: [createdById], references: [id])
+  questions           Question[]
   voiceAgentQuestions VoiceAgentQuestion[]
+  responses           Response[]
+  analyses            Analysis[]
+  conversations       Conversation[]
+  agentCalls          AgentCall[]
 
   @@map("surveys")
 }
 
-// ============================================================
-// QUESTION MODEL — Static survey questions
-// ============================================================
 model Question {
-  id        Int          @id @default(autoincrement())
-  text      String
-  type      QuestionType @default(OPEN_TEXT)
-  options   String[]     @default([])
-  required  Boolean      @default(true)
-  order     Int          @default(0)
-  surveyId  Int
-  survey    Survey       @relation(fields: [surveyId], references: [id], onDelete: Cascade)
-  answers   Answer[]
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
+  id         Int          @id @default(autoincrement())
+  surveyId   Int
+  title      String
+  type       QuestionType @default(OPEN_TEXT)
+  options    String[]     @default([])
+  isRequired Boolean      @default(true)
+  order      Int          @default(0)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  survey     Survey       @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  answers    Answer[]
 
   @@map("questions")
 }
 
-// ============================================================
-// VOICE AGENT QUESTION — v1.3 Voice survey questions
-// ============================================================
 model VoiceAgentQuestion {
-  id             Int      @id @default(autoincrement())
-  questionText   String
-  followUpPrompt String?
-  order          Int      @default(0)
-  isActive       Boolean  @default(true)
-  surveyId       Int
-  survey         Survey   @relation(fields: [surveyId], references: [id], onDelete: Cascade)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id        Int                @id @default(autoincrement())
+  surveyId  Int
+  title     String
+  order     Int                @default(0)
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+  survey    Survey             @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  answers   VoiceAgentAnswer[]
 
   @@map("voice_agent_questions")
 }
 
-// ============================================================
-// RESPONSE MODEL — Static survey responses
-// ============================================================
 model Response {
-  id              Int      @id @default(autoincrement())
-  respondentName  String   @default("Anonymous")
-  respondentEmail String?
-  language        String   @default("nl")
-  surveyId        Int
-  survey          Survey   @relation(fields: [surveyId], references: [id], onDelete: Cascade)
-  answers         Answer[]
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                Int                  @id @default(autoincrement())
+  surveyId          Int
+  respondentName    String?
+  respondentEmail   String?
+  isCompleted       Boolean              @default(false)
+  status            SurveyResponseStatus @default(IN_PROGRESS)
+  lastAnsweredPhase String?
+  progressPercent   Int                  @default(0)
+  conversationId    Int?                 @unique
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  survey            Survey               @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  answers           Answer[]
+  conversation      Conversation?        @relation(fields: [conversationId], references: [id], onDelete: SetNull)
 
   @@map("responses")
 }
 
-// ============================================================
-// ANSWER MODEL — Individual answers to questions
-// ============================================================
 model Answer {
-  id         Int      @id @default(autoincrement())
-  text       String
-  questionId Int
-  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
-  responseId Int
-  response   Response @relation(fields: [responseId], references: [id], onDelete: Cascade)
-  createdAt  DateTime @default(now())
+  id             Int      @id @default(autoincrement())
+  responseId     Int
+  questionId     Int
+  textValue      String?
+  selectedOption String?
+  ratingValue    Int?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  response       Response @relation(fields: [responseId], references: [id], onDelete: Cascade)
+  question       Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
 
   @@map("answers")
 }
 
-// ============================================================
-// VOICE AGENT ANSWER — Answers from VAPI calls
-// ============================================================
 model VoiceAgentAnswer {
-  id           Int       @id @default(autoincrement())
-  questionText String
-  answerText   String
-  confidence   Float?
-  agentCallId  Int
-  agentCall    AgentCall @relation(fields: [agentCallId], references: [id], onDelete: Cascade)
-  createdAt    DateTime  @default(now())
+  id          Int                @id @default(autoincrement())
+  agentCallId Int
+  questionId  Int
+  textValue   String?            @db.Text
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  agentCall   AgentCall          @relation(fields: [agentCallId], references: [id], onDelete: Cascade)
+  question    VoiceAgentQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
 
   @@map("voice_agent_answers")
 }
 
-// ============================================================
-// ANALYSIS MODEL — Stored AI analyses
-// ============================================================
 model Analysis {
-  id                 Int      @id @default(autoincrement())
-  title              String   @default("AI Analysis")
-  content            String
-  analysisType       String   @default("comprehensive")
-  dataSourcesSummary String?
-  metadata           Json?
-  surveyId           Int
-  survey             Survey   @relation(fields: [surveyId], references: [id], onDelete: Cascade)
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  id              Int      @id @default(autoincrement())
+  surveyId        Int
+  title           String   @default("AI Survey Analyse")
+  themes          Json?
+  patterns        Json?
+  problems        Json?
+  bestPractices   Json?
+  knowledgeGaps   Json?
+  recommendations Json?
+  summary         String?
+  metadata        Json?
+  generatedAt     DateTime @default(now())
+  survey          Survey   @relation(fields: [surveyId], references: [id], onDelete: Cascade)
 
   @@map("analyses")
 }
 
-// ============================================================
-// CONVERSATION MODEL — v1.1 Chat sessions
-// ============================================================
 model Conversation {
-  id              Int                   @id @default(autoincrement())
-  respondentName  String                @default("Anonymous")
-  language        String                @default("nl")
-  currentQuestion Int                   @default(0)
-  isCompleted     Boolean               @default(false)
-  completedAt     DateTime?
-  surveyId        Int
-  survey          Survey                @relation(fields: [surveyId], references: [id], onDelete: Cascade)
-  // v2.0: Link to ExpertProfile for multi-session tracking
-  expertProfileId Int?
-  expertProfile   ExpertProfile?        @relation(fields: [expertProfileId], references: [id])
-  messages        ConversationMessage[]
-  entities        ExtractedEntity[]
-  metadata        ConversationMetadata?
-  createdAt       DateTime              @default(now())
-  updatedAt       DateTime              @updatedAt
+  id                Int                    @id @default(autoincrement())
+  surveyId          Int
+  respondentName    String?
+  respondentEmail   String?
+  isCompleted       Boolean                @default(false)
+  currentPhase      String                 @default("opening")
+  contextData       Json?
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  survey            Survey                 @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  messages          ConversationMessage[]
+  extractedEntities ExtractedEntity[]
+  metadata          ConversationMetadata[]
+  response          Response?
 
   @@map("conversations")
 }
 
-// ============================================================
-// CONVERSATION MESSAGE — Individual messages
-// ============================================================
 model ConversationMessage {
   id             Int          @id @default(autoincrement())
-  role           MessageRole
-  content        String
-  questionIndex  Int?
   conversationId Int
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           MessageRole
+  content        String       @db.Text
+  questionPhase  String?
+  metadataTag    String?
   createdAt      DateTime     @default(now())
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   @@map("conversation_messages")
 }
 
-// ============================================================
-// EXTRACTED ENTITY — AI-extracted entities
-// v2.0: Added decision_context, workaround, exception types
-// ============================================================
 model ExtractedEntity {
   id             Int          @id @default(autoincrement())
-  type           String       // person, system, process, risk, kpi, department,
-                              // decision_context, workaround, exception (v2.0)
-  value          String
-  context        String?
-  confidence     Float        @default(0.8)
-  questionIndex  Int?
-  metadata       Json?        // risk_probability, process_frequency, etc.
   conversationId Int
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  // v2.0: Knowledge Graph relationships
-  knowledgeNodes KnowledgeNode[]
+  entityType     String
+  entityValue    String
+  context        String?      @db.Text
+  sourcePhase    String?
+  sentiment      String?
   createdAt      DateTime     @default(now())
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   @@map("extracted_entities")
 }
 
-// ============================================================
-// CONVERSATION METADATA — Summaries & progress
-// v2.0: Added tacit knowledge scoring fields
-// ============================================================
 model ConversationMetadata {
-  id                  Int          @id @default(autoincrement())
-  summary             String?
-  keyInsights         String[]     @default([])
-  riskFactors         String[]     @default([])
-  recommendations     String[]     @default([])
-  completionScore     Float        @default(0)
-  // v2.0: Tacit Knowledge Score fields
-  tacitKnowledgeScore Float        @default(0)  // 0-100
-  knowledgeDomains    String[]     @default([])  // identified knowledge domains
-  uniqueInsightsCount Int          @default(0)   // count of unique insights
-  decisionContextCount Int         @default(0)   // count of why-layer entities
-  workaroundCount     Int          @default(0)   // count of workarounds identified
-  exceptionCount      Int          @default(0)   // count of exceptions identified
-  conversationId      Int          @unique
-  conversation        Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  createdAt           DateTime     @default(now())
-  updatedAt           DateTime     @updatedAt
+  id             Int          @id @default(autoincrement())
+  conversationId Int
+  metadataKey    String
+  metadataValue  String       @db.Text
+  phase          String?
+  createdAt      DateTime     @default(now())
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   @@map("conversation_metadata")
 }
 
-// ============================================================
-// AGENT CALL — v1.3 VAPI phone calls
-// ============================================================
 model AgentCall {
-  id             Int                @id @default(autoincrement())
-  vapiCallId     String             @unique
-  phoneNumber    String?
-  status         CallStatus         @default(INITIATED)
-  duration       Int?               // seconds
-  transcript     String?
-  summary        String?
-  structuredData Json?
-  recordingUrl   String?
-  costBreakdown  Json?
-  vapiMetadata   Json?
-  userId         Int
-  user           User               @relation(fields: [userId], references: [id])
-  answers        VoiceAgentAnswer[]
-  createdAt      DateTime           @default(now())
-  updatedAt      DateTime           @updatedAt
+  id              Int                @id @default(autoincrement())
+  surveyId        Int
+  userId          Int?
+  vapiCallId      String?            @unique
+  firstName       String?
+  lastName        String?
+  phoneNumber     String?
+  dailyActivities String?            @db.Text
+  challenges      String?            @db.Text
+  tomorrowActions String?            @db.Text
+  transcript      String?            @db.Text
+  duration        Int?
+  status          CallStatus         @default(IN_PROGRESS)
+  metadata        Json?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  survey          Survey             @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  user            User?              @relation(fields: [userId], references: [id])
+  answers         VoiceAgentAnswer[]
 
   @@map("agent_calls")
 }
 
-// ============================================================
-// TRANSLATION MODEL — Admin-managed translations
-// ============================================================
 model Translation {
   id         Int      @id @default(autoincrement())
-  entityType String   // "survey_title", "survey_description", etc.
-  entityId   Int      // Survey.id or Question.id
-  field      String   // "title", "description", "welcomeText", etc.
-  language   String   // "nl", "en", "de", "fr", "es", "pt", "it"
-  value      String
+  entityType String
+  entityId   Int
+  language   String
+  fieldName  String   @default("")
+  content    String   @db.Text
   createdAt  DateTime @default(now())
-  updatedAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  @@unique([entityType, entityId, field, language])
+  @@unique([entityType, entityId, language, fieldName])
+  @@index([entityType, entityId])
+  @@index([language])
   @@map("translations")
 }
 
-// ============================================================
-// DYNAMIC TRANSLATION CACHE — AI translation cache
-// ============================================================
 model DynamicTranslationCache {
   id             Int      @id @default(autoincrement())
-  sourceText     String
-  sourceLanguage String   @default("nl")
-  sourceHash     String   // MD5 hash for quick lookup
-  targetLanguage String
-  translatedText String
+  sourceText     String   @db.Text
+  sourceHash     String
+  targetLang     String
+  translatedText String   @db.Text
   createdAt      DateTime @default(now())
-  updatedAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  @@unique([sourceHash, targetLanguage])
+  @@unique([sourceHash, targetLang])
   @@index([sourceHash])
+  @@index([targetLang])
   @@map("dynamic_translation_cache")
 }
 
-// ============================================================
-// v2.0: EXPERT PROFILE — Multi-session knowledge dossier
-// ============================================================
-model ExpertProfile {
-  id               Int            @id @default(autoincrement())
-  name             String
-  email            String?
-  role             String         // Job title / function
-  department       String
-  organization     String?
-  knowledgeDomains String[]       @default([])
-  riskLevel        ExpertRisk     @default(MEDIUM) // How critical is this person's knowledge
-  knowledgeScore   Float          @default(0)       // Aggregate tacit knowledge score
-  sessionCount     Int            @default(0)
-  lastSessionAt    DateTime?
-  nextSessionDue   DateTime?
-  notes            String?
-  sessions         Conversation[] // Multiple conversations over time
-  knowledgeNodes   KnowledgeNode[] // Linked knowledge graph nodes
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
-
-  @@map("expert_profiles")
-}
-
-// ============================================================
-// v2.0: KNOWLEDGE NODE — Knowledge Graph nodes
-// ============================================================
-model KnowledgeNode {
-  id             Int               @id @default(autoincrement())
-  nodeType       KnowledgeNodeType
-  label          String            // Human-readable label
-  description    String?
-  domain         String?           // e.g. "SAP FI", "IT Operations"
-  confidence     Float             @default(0.8)
-  metadata       Json?             // Extra structured data
-  // Relationships
-  sourceEntities ExtractedEntity[]
-  expertProfile  ExpertProfile?    @relation(fields: [expertProfileId], references: [id])
-  expertProfileId Int?
-  outgoingEdges  KnowledgeEdge[]   @relation("EdgeFrom")
-  incomingEdges  KnowledgeEdge[]   @relation("EdgeTo")
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
-
-  @@index([nodeType])
-  @@index([domain])
-  @@map("knowledge_nodes")
-}
-
-// ============================================================
-// v2.0: KNOWLEDGE EDGE — Knowledge Graph relationships
-// ============================================================
-model KnowledgeEdge {
-  id           Int               @id @default(autoincrement())
-  edgeType     KnowledgeEdgeType
-  label        String?           // Human-readable label
-  weight       Float             @default(1.0)
-  metadata     Json?
-  fromNodeId   Int
-  fromNode     KnowledgeNode     @relation("EdgeFrom", fields: [fromNodeId], references: [id], onDelete: Cascade)
-  toNodeId     Int
-  toNode       KnowledgeNode     @relation("EdgeTo", fields: [toNodeId], references: [id], onDelete: Cascade)
-  createdAt    DateTime          @default(now())
-
-  @@index([fromNodeId])
-  @@index([toNodeId])
-  @@index([edgeType])
-  @@map("knowledge_edges")
-}
-
-// ============================================================
-// v2.0: KNOWLEDGE OS EVENT — Integration event log
-// ============================================================
-model KnowledgeOSEvent {
-  id          Int      @id @default(autoincrement())
-  eventType   String   // knowledge.extracted, document.analyzed, learning.completed, etc.
-  source      String   // aisurvey, edi, learning
-  payload     Json
-  status      String   @default("pending") // pending, processed, failed
-  processedAt DateTime?
-  error       String?
-  createdAt   DateTime @default(now())
-
-  @@index([eventType])
-  @@index([status])
-  @@map("knowledge_os_events")
-}
-
-// ============================================================
-// ENUMS
-// ============================================================
 enum SurveyType {
   STATIC
   CONVERSATIONAL
@@ -405,8 +258,6 @@ enum SurveyType {
 }
 
 enum CallStatus {
-  INITIATED
-  RINGING
   IN_PROGRESS
   COMPLETED
   FAILED
@@ -414,54 +265,24 @@ enum CallStatus {
 }
 
 enum MessageRole {
-  user
-  assistant
-  system
+  AI
+  USER
+}
+
+enum SurveyResponseStatus {
+  IN_PROGRESS
+  COMPLETED
+  ABANDONED
 }
 
 enum QuestionType {
   OPEN_TEXT
   MULTIPLE_CHOICE
   RATING_SCALE
-  YES_NO
 }
 
 enum UserRole {
   ADMIN
   EDITOR
   VIEWER
-}
-
-// v2.0 Enums
-enum ExpertRisk {
-  LOW
-  MEDIUM
-  HIGH
-  CRITICAL
-}
-
-enum KnowledgeNodeType {
-  PERSON
-  PROCESS
-  SYSTEM
-  DECISION
-  EXCEPTION
-  WORKAROUND
-  SKILL
-  DOCUMENT
-  DEPARTMENT
-  RISK
-}
-
-enum KnowledgeEdgeType {
-  KNOWS_ABOUT
-  DEPENDS_ON
-  EXCEPTION_OF
-  DECIDED_BY
-  DOCUMENTED_IN
-  USES
-  MANAGES
-  WORKS_WITH
-  ALTERNATIVE_TO
-  PREREQUISITE_OF
 }

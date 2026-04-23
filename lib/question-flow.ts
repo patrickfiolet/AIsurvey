@@ -1,283 +1,106 @@
-/**
- * Question Flow Engine — v2.0
- *
- * Default 10-question structure with follow-ups for organizational assessment.
- * v2.0 adds domain template support and enhanced quality analysis.
- */
+export interface QuestionFlowItem {
+  id: string
+  phase: string
+  question: string
+  followUps: { trigger: string; question: string }[]
+}
 
-import type { QuestionFlowItem } from './types'
-
-// ============================================================
-// Default Question Flow (General IT Assessment)
-// ============================================================
-
-export const defaultQuestionFlow: QuestionFlowItem[] = [
+export const questionFlow: QuestionFlowItem[] = [
   {
-    id: 1,
-    question:
-      'Can you briefly describe your organization? What is the core activity and how many employees do you have?',
-    purpose: 'Gather basic information about the organization',
-    category: 'organization',
+    id: 'q1',
+    phase: 'opening',
+    question: 'Kunt u mij vertellen wat uw functie is en hoe lang u al bij de organisatie werkt?',
     followUps: [
-      'In which sector does your organization operate specifically?',
-      'How many locations does your organization have?',
-      'Is your organization part of a larger group?',
+      { trigger: 'kort', question: 'U bent er nog niet zo lang. Hoe verliep de inwerkperiode?' },
+      { trigger: 'lang', question: 'Met uw ervaring, hoe heeft u de organisatie zien veranderen?' },
     ],
-    expectedEntities: ['department', 'person'],
   },
   {
-    id: 2,
-    question: 'What IT systems and software does your organization currently use?',
-    purpose: 'Map the current IT landscape',
-    category: 'systems',
+    id: 'q2',
+    phase: 'context',
+    question: 'Kunt u beschrijven hoe kennis momenteel wordt gedeeld binnen uw team of afdeling?',
     followUps: [
-      'How satisfied are you with these systems?',
-      'Are there any systems you want to replace?',
-      'How are these systems integrated with each other?',
+      { trigger: 'informeel', question: 'Ziet u risico\'s bij deze informele kennisdeling?' },
+      { trigger: 'formeel', question: 'Hoe effectief vindt u deze formele aanpak?' },
     ],
-    expectedEntities: ['system', 'technology'],
   },
   {
-    id: 3,
-    question:
-      'What does your current IT infrastructure look like? Think about servers, cloud, network.',
-    purpose: 'Assess the technical infrastructure',
-    category: 'infrastructure',
+    id: 'q3',
+    phase: 'challenges',
+    question: 'Wat zijn de grootste uitdagingen die u ervaart bij kennisoverdracht?',
     followUps: [
-      'Do you use cloud services? If so, which ones?',
-      'How is your network secured?',
-      'Do you have a disaster recovery plan?',
+      { trigger: 'tijd', question: 'Hoe gaat u om met het tijdgebrek voor kennisdeling?' },
+      { trigger: 'tools', question: 'Welke tools mist u het meest?' },
     ],
-    expectedEntities: ['system', 'technology', 'process'],
   },
   {
-    id: 4,
-    question:
-      'What are the biggest challenges or bottlenecks in your current IT environment?',
-    purpose: 'Identify pain points and opportunities for improvement',
-    category: 'challenges',
+    id: 'q4',
+    phase: 'tools',
+    question: 'Welke tools of systemen gebruikt u momenteel voor het vastleggen en delen van kennis?',
     followUps: [
-      'What impact do these challenges have on your daily operations?',
-      'Have you already taken steps to address these issues?',
-      'Which bottleneck has the highest priority?',
+      { trigger: 'geen', question: 'Hoe houdt u dan belangrijke informatie bij?' },
+      { trigger: 'veel', question: 'Is er overlap tussen deze tools? Veroorzaakt dat verwarring?' },
     ],
-    expectedEntities: ['risk', 'process'],
   },
   {
-    id: 5,
-    question: 'How does your organization handle cybersecurity and data protection?',
-    purpose: 'Assess security maturity',
-    category: 'security',
+    id: 'q5',
+    phase: 'frequency',
+    question: 'Hoe vaak vindt er bewuste kennisoverdracht plaats? Denk aan trainingen, mentoring of documentatie.',
     followUps: [
-      'Do you have a security officer or responsible person?',
-      'Are employees trained in security awareness?',
-      'Have you experienced any security incidents?',
+      { trigger: 'zelden', question: 'Wat zou u motiveren om vaker kennis te delen?' },
+      { trigger: 'regelmatig', question: 'Wat maakt deze sessies effectief?' },
     ],
-    expectedEntities: ['person', 'process', 'risk'],
   },
   {
-    id: 6,
-    question:
-      'Which business processes would you like to digitize or improve with technology?',
-    purpose: 'Explore digitalization ambitions and opportunities',
-    category: 'digitalization',
+    id: 'q6',
+    phase: 'critical_knowledge',
+    question: 'Welke kritische kennis dreigt verloren te gaan, bijvoorbeeld door pensionering of vertrek van medewerkers?',
     followUps: [
-      'Which processes are still manual?',
-      'What would be the impact of digitizing these processes?',
-      'Have you allocated a budget for digitalization?',
+      { trigger: 'specifiek', question: 'Zijn er al stappen ondernomen om deze kennis vast te leggen?' },
+      { trigger: 'onbekend', question: 'Hoe zou u deze kennisrisico\'s beter in kaart kunnen brengen?' },
     ],
-    expectedEntities: ['process', 'kpi', 'department'],
   },
   {
-    id: 7,
-    question:
-      'How does your organization measure IT performance? Which KPIs do you use?',
-    purpose: 'Understand IT governance and metrics',
-    category: 'kpis',
+    id: 'q7',
+    phase: 'culture',
+    question: 'Hoe zou u de kenniscultuur binnen uw organisatie omschrijven?',
     followUps: [
-      'How often are these KPIs reported?',
-      'Who is responsible for IT reporting?',
-      'Are you satisfied with the current measurement methods?',
+      { trigger: 'open', question: 'Wat draagt bij aan deze open cultuur?' },
+      { trigger: 'gesloten', question: 'Wat zijn de barrières voor het delen van kennis?' },
     ],
-    expectedEntities: ['kpi', 'person', 'process'],
   },
   {
-    id: 8,
-    question: 'What is your vision on AI and automation within your organization?',
-    purpose: 'Determine AI readiness and future vision',
-    category: 'ai_vision',
+    id: 'q8',
+    phase: 'improvements',
+    question: 'Als u één ding zou mogen veranderen aan hoe kennis wordt beheerd, wat zou dat zijn?',
     followUps: [
-      'Are you already using AI tools?',
-      'Which processes would benefit most from AI?',
-      'How do your employees feel about AI?',
+      { trigger: 'systeem', question: 'Welke functionaliteiten zou dit ideale systeem moeten hebben?' },
+      { trigger: 'proces', question: 'Hoe zou u dit nieuwe proces implementeren?' },
     ],
-    expectedEntities: ['technology', 'process', 'risk'],
   },
   {
-    id: 9,
-    question:
-      'How is your IT team organized? Do you have sufficient expertise in-house?',
-    purpose: 'Assess IT capacity and competencies',
-    category: 'team',
+    id: 'q9',
+    phase: 'ai_experience',
+    question: 'Wat is uw ervaring met AI-tools of slimme systemen die kenniswerk ondersteunen?',
     followUps: [
-      'How many FTEs are in your IT team?',
-      'What expertise is missing in your team?',
-      'Do you use external IT partners?',
+      { trigger: 'positief', question: 'Welke AI-toepassingen zou u graag meer willen zien?' },
+      { trigger: 'geen', question: 'Zou u openstaan voor AI-ondersteuning bij kennisoverdracht?' },
     ],
-    expectedEntities: ['person', 'department'],
   },
   {
-    id: 10,
-    question:
-      'If you could change one thing about your IT environment, what would it be and why?',
-    purpose: 'Understand priorities and decision-making',
-    category: 'priorities',
-    followUps: [
-      'What do you expect the impact of this change would be?',
-      'What is preventing you from making this change now?',
-      'What budget do you have available for IT improvement?',
-    ],
-    expectedEntities: ['process', 'risk', 'kpi'],
+    id: 'q10',
+    phase: 'closing',
+    question: 'Is er nog iets dat u wilt toevoegen over kennisoverdracht dat we niet hebben besproken?',
+    followUps: [],
   },
 ]
 
-// ============================================================
-// Response Quality Analysis
-// ============================================================
-
-export function analyzeResponseQuality(
-  answer: string,
-  question: QuestionFlowItem
-): { quality: 'low' | 'medium' | 'high'; reason: string } {
-  const wordCount = answer.trim().split(/\s+/).length
-
-  if (wordCount < 5) {
-    return { quality: 'low', reason: 'Answer is too short for meaningful analysis' }
-  }
-
-  // Check if expected entities are present
-  const hasExpectedContent = question.expectedEntities.some((entityType) => {
-    switch (entityType) {
-      case 'system':
-        return /\b(SAP|Microsoft|Oracle|Salesforce|AWS|Azure|Google|Slack|software|system|application)\b/i.test(
-          answer
-        )
-      case 'person':
-        return /\b(manager|director|employee|team|department|colleague)\b/i.test(answer)
-      case 'process':
-        return /\b(process|workflow|procedure|step|phase|approach)\b/i.test(answer)
-      case 'risk':
-        return /\b(risk|danger|problem|challenge|vulnerability|threat)\b/i.test(answer)
-      case 'kpi':
-        return /\b(KPI|metric|indicator|performance|score|percentage|uptime|SLA)\b/i.test(
-          answer
-        )
-      case 'department':
-        return /\b(IT|HR|Finance|Marketing|Sales|Operations|department)\b/i.test(answer)
-      default:
-        return false
-    }
-  })
-
-  // v2.0: Check for tacit knowledge indicators
-  const hasTacitIndicators =
-    /\b(because|reason|decided|chose|workaround|exception|normally|usually|actually|secret|trick|only I know)\b/i.test(
-      answer
-    )
-
-  if (wordCount > 20 && (hasExpectedContent || hasTacitIndicators)) {
-    return { quality: 'high', reason: 'Detailed answer with relevant information' }
-  }
-
-  if (wordCount > 10 || hasExpectedContent) {
-    return {
-      quality: 'medium',
-      reason: 'Answer contains relevant information but could be expanded',
-    }
-  }
-
-  return { quality: 'low', reason: 'Answer lacks specific details' }
+export function getQuestionByPhase(phase: string): QuestionFlowItem | undefined {
+  return questionFlow?.find?.((q: any) => q?.phase === phase)
 }
 
-// ============================================================
-// Follow-up Decision
-// ============================================================
-
-export function shouldProbe(
-  quality: 'low' | 'medium' | 'high',
-  followUpCount: number,
-  maxFollowUps: number = 2
-): boolean {
-  if (followUpCount >= maxFollowUps) return false
-  if (quality === 'low') return true
-  if (quality === 'medium' && followUpCount === 0) return true
-  return false
+export function getNextPhase(currentPhase: string): string | null {
+  const idx = questionFlow?.findIndex?.((q: any) => q?.phase === currentPhase) ?? -1
+  if (idx < 0 || idx >= (questionFlow?.length ?? 0) - 1) return null
+  return questionFlow?.[idx + 1]?.phase ?? null
 }
-
-// ============================================================
-// Get Question Flow by Template ID
-// ============================================================
-
-export function getQuestionFlowForTemplate(templateId?: string | null): QuestionFlowItem[] {
-  if (!templateId) return defaultQuestionFlow
-
-  // Dynamic import of domain-specific templates
-  const templates: Record<string, QuestionFlowItem[]> = {
-    'sap-knowledge': require('./question-flows/sap-knowledge').sapQuestionFlow,
-    'healthcare': require('./question-flows/healthcare').healthcareQuestionFlow,
-    'it-operations': require('./question-flows/it-operations').itOperationsQuestionFlow,
-    'government': require('./question-flows/government').governmentQuestionFlow,
-    'general-knowledge': require('./question-flows/general-knowledge').generalKnowledgeQuestionFlow,
-  }
-
-  return templates[templateId] || defaultQuestionFlow
-}
-
-// ============================================================
-// Available Templates Metadata
-// ============================================================
-
-export const availableTemplates = [
-  {
-    id: 'default',
-    name: 'General IT Assessment',
-    description: 'Standard 10-question organizational IT assessment',
-    category: 'general',
-    questionCount: 10,
-  },
-  {
-    id: 'sap-knowledge',
-    name: 'SAP Knowledge Extraction',
-    description: 'Targeted questions for SAP/ERP tacit knowledge capture',
-    category: 'enterprise',
-    questionCount: 10,
-  },
-  {
-    id: 'healthcare',
-    name: 'Healthcare Knowledge Capture',
-    description: 'Questions for capturing clinical and operational healthcare knowledge',
-    category: 'healthcare',
-    questionCount: 10,
-  },
-  {
-    id: 'it-operations',
-    name: 'IT Operations Knowledge',
-    description: 'Focus on infrastructure, incident response, and operational tribal knowledge',
-    category: 'it',
-    questionCount: 10,
-  },
-  {
-    id: 'government',
-    name: 'Government & Public Sector',
-    description: 'Policy, regulation, and institutional knowledge capture',
-    category: 'government',
-    questionCount: 10,
-  },
-  {
-    id: 'general-knowledge',
-    name: 'General Knowledge Retention',
-    description: 'Broad organizational knowledge and decision-making capture',
-    category: 'general',
-    questionCount: 10,
-  },
-]

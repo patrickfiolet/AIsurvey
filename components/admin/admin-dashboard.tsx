@@ -1,118 +1,89 @@
 'use client'
 
-/**
- * Admin Dashboard Component — v2.0
- * Tabs: Surveys, Questions, Responses, Analysis, Voice Agent,
- *       Translations, Knowledge Graph, Expert Profiles, Tacit Score,
- *       Users, Settings
- */
-import { useState } from 'react'
-import { signOut } from 'next-auth/react'
-import Image from 'next/image'
-import { SurveysManager } from './surveys-manager'
-import { ResponsesViewer } from './responses-viewer'
-import { TacitScoreDashboard } from './tacit-score-dashboard'
+import { useState, useEffect } from 'react'
+import { useLanguage } from '@/lib/language-context'
+import { languages, Language } from '@/lib/i18n'
+import AdminSidebar from './admin-sidebar'
+import DashboardTab from './tabs/dashboard-tab'
+import SurveysTab from './tabs/surveys-tab'
+import QuestionsTab from './tabs/questions-tab'
+import ResponsesTab from './tabs/responses-tab'
+import AnalysisTab from './tabs/analysis-tab'
+import VoiceAgentTab from './tabs/voice-agent-tab'
+import TranslationsTab from './tabs/translations-tab'
+import SettingsTab from './tabs/settings-tab'
+import UsersTab from './tabs/users-tab'
+import { Eye, Globe } from 'lucide-react'
 
-const tabs = [
-  { id: 'surveys', label: 'Surveys', icon: '📋' },
-  { id: 'responses', label: 'Responses', icon: '💬' },
-  { id: 'analysis', label: 'Analysis', icon: '🧠' },
-  { id: 'tacit-score', label: 'Tacit Score', icon: '📊' },
-  { id: 'knowledge-graph', label: 'Knowledge Graph', icon: '🔗' },
-  { id: 'expert-profiles', label: 'Expert Profiles', icon: '👤' },
-  { id: 'voice-agent', label: 'Voice Agent', icon: '🎙️' },
-  { id: 'translations', label: 'Translations', icon: '🌐' },
-  { id: 'integration', label: 'Integration', icon: '↔️' },
-  { id: 'users', label: 'Users', icon: '👥' },
-  { id: 'settings', label: 'Settings', icon: '⚙️' },
-]
-
-export function AdminDashboard() {
+export default function AdminDashboard() {
+  const { language, setLanguage, t } = useLanguage()
   const [activeTab, setActiveTab] = useState('surveys')
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => { setMounted(true) }, [])
+
+  if (!mounted) return null
+
+  const tabTitles: Record<string, string> = {
+    surveys: t('menuSurveys'),
+    dashboard: t('menuDashboard'),
+    questions: t('menuQuestions'),
+    responses: t('menuResponses'),
+    voiceAgent: t('menuVoiceAgent'),
+    analysis: t('menuAnalysis'),
+    translations: t('menuTranslations'),
+    settings: t('menuSettings'),
+    users: t('menuUsers'),
+  }
 
   return (
-    <div className="flex min-h-screen">
-      {/* Sidebar */}
-      <aside className="w-64 border-r bg-white">
-        <div className="flex items-center gap-2 border-b px-4 py-4">
-          <Image src="/logo.png" alt="aisurvey.me" width={32} height={32} />
-          <div>
-            <div className="text-sm font-bold">aisurvey.me</div>
-            <div className="text-xs text-gray-500">v2.0 Admin</div>
+    <div className="min-h-screen bg-slate-50">
+      <AdminSidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+
+      {/* Main content */}
+      <div className="ml-[200px]">
+        {/* Top header bar */}
+        <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-200 px-6 py-3">
+          <div className="flex items-center justify-between">
+            <h1 className="text-lg font-bold text-slate-800">{tabTitles[activeTab] || ''}</h1>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => window.open('/survey?id=1', '_blank')}
+                className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-blue-600 transition-colors"
+              >
+                <Eye className="w-4 h-4" />
+                {t('viewSurvey')}
+              </button>
+              <div className="flex items-center gap-1.5">
+                <Globe className="w-4 h-4 text-slate-400" />
+                <select
+                  value={language}
+                  onChange={(e: any) => setLanguage(e?.target?.value as Language)}
+                  className="text-sm border border-slate-200 rounded-lg px-2 py-1 bg-white"
+                >
+                  {(languages ?? []).map((l: any) => (
+                    <option key={l?.code} value={l?.code}>{l?.flag} {l?.name}</option>
+                  ))}
+                </select>
+              </div>
+              <span className="text-xs font-medium text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full">
+                {t('admin')}
+              </span>
+            </div>
           </div>
-        </div>
+        </header>
 
-        <nav className="p-2">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors ${
-                activeTab === tab.id
-                  ? 'bg-blue-50 text-blue-700 font-medium'
-                  : 'text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              <span>{tab.icon}</span>
-              <span>{tab.label}</span>
-            </button>
-          ))}
-        </nav>
-
-        <div className="absolute bottom-4 left-4">
-          <button
-            onClick={() => signOut({ callbackUrl: '/admin/login' })}
-            className="text-sm text-gray-500 hover:text-gray-700"
-          >
-            🚶 Logout
-          </button>
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <main className="flex-1 bg-gray-50 p-6">
-        <div className="mx-auto max-w-6xl">
-          {activeTab === 'surveys' && <SurveysManager />}
-          {activeTab === 'responses' && <ResponsesViewer />}
-          {activeTab === 'analysis' && <AnalysisPlaceholder />}
-          {activeTab === 'tacit-score' && <TacitScoreDashboard />}
-          {activeTab === 'knowledge-graph' && <PlaceholderTab title="Knowledge Graph" description="Visual knowledge graph explorer with nodes, edges, and 'what if' scenarios. Connect people, processes, systems, and decisions." />}
-          {activeTab === 'expert-profiles' && <PlaceholderTab title="Expert Profiles" description="Multi-session knowledge dossiers per expert. Track knowledge domains, risk levels, and session history." />}
-          {activeTab === 'voice-agent' && <PlaceholderTab title="Voice Agent" description="VAPI voice agent management. View calls, transcripts, extracted answers, and costs." />}
-          {activeTab === 'translations' && <PlaceholderTab title="Translations" description="Manage translations for surveys, questions, and dynamic content across 7 languages." />}
-          {activeTab === 'integration' && <PlaceholderTab title="Knowledge-OS Integration" description="Monitor integration status with EDI and learning.me. View event logs and configuration." />}
-          {activeTab === 'users' && <PlaceholderTab title="User Management" description="Manage admin users, roles (Admin, Editor, Viewer), and permissions." />}
-          {activeTab === 'settings' && <PlaceholderTab title="Settings" description="Application settings, theme configuration, and system preferences." />}
-        </div>
-      </main>
-    </div>
-  )
-}
-
-function AnalysisPlaceholder() {
-  return (
-    <div className="space-y-4">
-      <h2 className="text-2xl font-bold">AI Analysis</h2>
-      <p className="text-gray-600">
-        Consolidated AI analysis across static responses, conversational data, and voice agent calls.
-        Includes streaming analysis, saved analyses, free prompt, and export to Excel/PDF.
-      </p>
-      <div className="rounded-xl border bg-white p-6">
-        <p className="text-gray-500 text-center py-8">
-          Select a survey to generate AI analysis. Analysis is streamed in real-time using GPT-4o.
-        </p>
-      </div>
-    </div>
-  )
-}
-
-function PlaceholderTab({ title, description }: { title: string; description: string }) {
-  return (
-    <div className="space-y-4">
-      <h2 className="text-2xl font-bold">{title}</h2>
-      <p className="text-gray-600">{description}</p>
-      <div className="rounded-xl border bg-white p-8 text-center">
-        <p className="text-gray-400">Component implementation ready — connect to API endpoints.</p>
+        {/* Tab content */}
+        <main className="p-6">
+          {activeTab === 'dashboard' && <DashboardTab />}
+          {activeTab === 'surveys' && <SurveysTab />}
+          {activeTab === 'questions' && <QuestionsTab />}
+          {activeTab === 'responses' && <ResponsesTab />}
+          {activeTab === 'analysis' && <AnalysisTab />}
+          {activeTab === 'voiceAgent' && <VoiceAgentTab />}
+          {activeTab === 'translations' && <TranslationsTab />}
+          {activeTab === 'settings' && <SettingsTab />}
+          {activeTab === 'users' && <UsersTab />}
+        </main>
       </div>
     </div>
   )

@@ -1,81 +1,76 @@
 'use client'
 
-/**
- * Admin Login Page
- */
 import { useState } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import { useLanguage } from '@/lib/language-context'
+import { Lock, Mail, Eye, EyeOff } from 'lucide-react'
 import Image from 'next/image'
 
-export default function LoginPage() {
+export default function AdminLoginPage() {
+  const { t } = useLanguage()
+  const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
-  const router = useRouter()
+  const [loading, setLoading] = useState(false)
+  const [showPass, setShowPass] = useState(false)
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setIsLoading(true)
+  const handleSubmit = async (e: React.FormEvent) => {
+    e?.preventDefault?.()
     setError('')
-
-    const result = await signIn('credentials', {
-      email,
-      password,
-      redirect: false,
-    })
-
-    if (result?.error) {
-      setError('Invalid email or password')
-      setIsLoading(false)
-    } else {
-      router.push('/admin')
+    setLoading(true)
+    try {
+      const result = await signIn('credentials', { redirect: false, email, password })
+      if (result?.error) {
+        setError(t('loginError'))
+      } else {
+        router.replace('/admin')
+      }
+    } catch {
+      setError(t('loginError'))
+    } finally {
+      setLoading(false)
     }
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50">
-      <div className="w-full max-w-sm rounded-xl border bg-white p-8 shadow-lg">
-        <div className="mb-6 text-center">
-          <Image src="/logo.png" alt="aisurvey.me" width={48} height={48} className="mx-auto mb-3" />
-          <h1 className="text-xl font-bold text-gray-900">Admin Login</h1>
-          <p className="text-sm text-gray-500">AIsurvey.me v2.0</p>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
+        <div className="flex flex-col items-center mb-8">
+          <div className="relative w-16 h-16 mb-3">
+            <Image src="/logo.png" alt="AIsurvey.me" fill className="object-contain" />
+          </div>
+          <h1 className="text-2xl font-bold text-slate-800">AIsurvey.me</h1>
+          <span className="text-xs text-purple-600 font-semibold">v3.0</span>
+          <p className="text-slate-500 mt-2 text-sm">{t('adminLogin')}</p>
         </div>
-
+        {error && <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm mb-4">{error}</div>}
         <form onSubmit={handleSubmit} className="space-y-4">
-          {error && (
-            <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</div>
-          )}
-
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Email</label>
+          <div className="relative">
+            <Mail className="absolute left-3 top-3 w-5 h-5 text-slate-400" />
             <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="w-full rounded-lg border px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              type="email" value={email} onChange={(e: any) => setEmail(e?.target?.value ?? '')}
+              placeholder={t('email')} required
+              className="w-full pl-11 pr-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
             />
           </div>
-
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Password</label>
+          <div className="relative">
+            <Lock className="absolute left-3 top-3 w-5 h-5 text-slate-400" />
             <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="w-full rounded-lg border px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              type={showPass ? 'text' : 'password'} value={password} onChange={(e: any) => setPassword(e?.target?.value ?? '')}
+              placeholder={t('password')} required
+              className="w-full pl-11 pr-11 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
             />
+            <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3 top-3 text-slate-400 hover:text-slate-600">
+              {showPass ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+            </button>
           </div>
-
           <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full rounded-lg bg-blue-600 px-4 py-2.5 font-medium text-white hover:bg-blue-700 transition-colors disabled:opacity-50"
+            type="submit" disabled={loading}
+            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white py-2.5 rounded-lg font-medium transition-colors"
           >
-            {isLoading ? 'Logging in...' : 'Login'}
+            {loading ? t('loading') : t('login')}
           </button>
         </form>
       </div>
