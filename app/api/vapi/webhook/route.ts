@@ -6,12 +6,22 @@
  */
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+import { verifyVapiWebhook } from '@/lib/vapi-signature'
 
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
+    // SECURITY: verify the webhook is genuinely from VAPI before processing.
+    // We read the raw body so HMAC signatures are computed over exact bytes.
+    const rawBody = await request.text()
+    const verification = verifyVapiWebhook(rawBody, request.headers, process.env.VAPI_WEBHOOK_SECRET)
+    if (!verification.valid) {
+      console.warn('VAPI webhook rejected:', verification.reason)
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const body = JSON.parse(rawBody)
     const { message } = body
 
     console.log('VAPI webhook received:', message?.type)
@@ -38,11 +48,10 @@ export async function POST(request: NextRequest) {
 
 async function handleAssistantRequest() {
   const questions = await prisma.voiceAgentQuestion.findMany({
-    where: { isActive: true },
     orderBy: { order: 'asc' },
   })
 
-  const questionsPrompt = questions.map((q, i) => `${i + 1}. ${q.questionText}`).join('\n')
+  const questionsPrompt = questions.map((q, i) => `${i + 1}. ${q.title}`).join('\n')
 
   return NextResponse.json({
     assistant: {

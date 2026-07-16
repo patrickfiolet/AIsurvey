@@ -19,14 +19,21 @@ export async function POST(request: NextRequest) {
     // Gather data context
     const conversations = await prisma.conversation.findMany({
       where: surveyId ? { surveyId: parseInt(surveyId) } : {},
-      include: { messages: true, entities: true, metadata: true },
+      include: { messages: true, extractedEntities: true, metadata: true },
     })
 
-    let context = conversations
+    const context = conversations
       .map((c) => {
-        const msgs = c.messages.filter((m) => m.role === 'user').map((m) => m.content).join('\n')
-        const ents = c.entities.map((e) => `${e.type}: ${e.value}`).join(', ')
-        return `Respondent: ${c.respondentName}\n${msgs}\nEntities: ${ents}\nTacit Score: ${c.metadata?.tacitKnowledgeScore || 'N/A'}`
+        const msgs = c.messages
+          .filter((m) => m.role === 'USER')
+          .map((m) => m.content)
+          .join('\n')
+        const ents = c.extractedEntities
+          .map((e) => `${e.entityType}: ${e.entityValue}`)
+          .join(', ')
+        const tacitScore =
+          c.metadata.find((m) => m.metadataKey === 'tacitKnowledgeScore')?.metadataValue ?? 'N/A'
+        return `Respondent: ${c.respondentName}\n${msgs}\nEntities: ${ents}\nTacit Score: ${tacitScore}`
       })
       .join('\n---\n')
 

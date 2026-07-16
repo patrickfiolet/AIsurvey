@@ -24,11 +24,10 @@ export async function POST(request: NextRequest) {
     const exportData = responses.map((r) => ({
       respondentName: r.respondentName,
       respondentEmail: r.respondentEmail,
-      language: r.language,
       submittedAt: r.createdAt,
       answers: r.answers.map((a) => ({
-        question: a.question.text,
-        answer: a.text,
+        question: a.question.title,
+        answer: a.textValue,
       })),
     }))
 

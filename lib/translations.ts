@@ -20,7 +20,7 @@ export async function getTranslatedSurvey(survey: any, language: string) {
     },
   })
 
-  const translationMap = new Map(translationRecords.map((t) => [t.field, t.value]))
+  const translationMap = new Map(translationRecords.map((t) => [t.fieldName, t.content]))
 
   return {
     ...survey,
@@ -44,11 +44,11 @@ export async function getTranslatedQuestions(questions: any[], language: string)
     },
   })
 
-  const translationMap = new Map(translationRecords.map((t) => [t.entityId, t.value]))
+  const translationMap = new Map(translationRecords.map((t) => [t.entityId, t.content]))
 
   return questions.map((q) => ({
     ...q,
-    text: translationMap.get(q.id) || q.text,
+    title: translationMap.get(q.id) || q.title,
   }))
 }
 
@@ -67,9 +67,9 @@ export async function translateDynamicContent(
   // Check cache
   const cached = await prisma.dynamicTranslationCache.findUnique({
     where: {
-      sourceHash_targetLanguage: {
+      sourceHash_targetLang: {
         sourceHash,
-        targetLanguage,
+        targetLang: targetLanguage,
       },
     },
   })
@@ -107,9 +107,8 @@ export async function translateDynamicContent(
     await prisma.dynamicTranslationCache.create({
       data: {
         sourceText: text,
-        sourceLanguage,
         sourceHash,
-        targetLanguage,
+        targetLang: targetLanguage,
         translatedText,
       },
     })

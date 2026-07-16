@@ -8,6 +8,8 @@ import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 import { processIncomingEvent } from '@/lib/knowledge-os-integration'
+import { requireAdmin } from '@/lib/rbac'
+import { validateRequest, integrationEventSchema } from '@/lib/validation'
 
 export const dynamic = 'force-dynamic'
 
@@ -43,9 +45,16 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  // SECURITY: this endpoint mutates state and previously had NO auth check.
+  const auth = await requireAdmin()
+  if (!auth.ok) return auth.response
+
+  const parsed = await validateRequest(request, integrationEventSchema)
+  if (!parsed.success) return parsed.response
+
   try {
-    const { eventType, source, payload } = await request.json()
-    await processIncomingEvent(eventType, source, payload)
+    const { eventType, source, payload } = parsed.data
+    await processIncomingEvent(eventType, source, payload ?? {})
     return NextResponse.json({ ok: true })
   } catch (error) {
     console.error('Integration event error:', error)

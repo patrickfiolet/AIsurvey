@@ -1,8 +1,12 @@
 /**
  * Tests for AI helper functions
  */
-import { describe, it, expect } from 'vitest'
-import { extractEntitiesFromText, calculateTacitKnowledgeScore } from '@/lib/ai-helper'
+import { describe, it, expect } from '@jest/globals'
+import {
+  extractEntitiesFromText,
+  calculateTacitKnowledgeScore,
+  enforceConversationalConstraints,
+} from '@/lib/ai-helper'
 
 describe('extractEntitiesFromText()', () => {
   it('should extract system entities', () => {
@@ -81,5 +85,27 @@ describe('calculateTacitKnowledgeScore()', () => {
       totalFollowUps: 100,
     })
     expect(score.overall).toBeLessThanOrEqual(100)
+  })
+})
+
+describe('enforceConversationalConstraints()', () => {
+  it('limits the response to at most two questions', () => {
+    const input = 'What is your role? How long have you worked here? What tools do you use? Anything else?'
+    const output = enforceConversationalConstraints(input)
+    const questionMarks = (output.match(/\?/g) ?? []).length
+    expect(questionMarks).toBeLessThanOrEqual(2)
+  })
+
+  it('removes repetitive courtesy phrases', () => {
+    const input = 'Thank you for your honesty. Can you tell me more about the process?'
+    const output = enforceConversationalConstraints(input)
+    expect(output.toLowerCase()).not.toContain('thank you for your honesty')
+  })
+
+  it('deduplicates repeated sentences', () => {
+    const input = 'This is important. This is important. What happens next?'
+    const output = enforceConversationalConstraints(input)
+    const occurrences = output.toLowerCase().split('this is important').length - 1
+    expect(occurrences).toBe(1)
   })
 })

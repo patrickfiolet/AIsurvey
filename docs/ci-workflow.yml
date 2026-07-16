@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    env:
+      # Dummy values so `prisma generate` and type-checking succeed in CI.
+      DATABASE_URL: "postgresql://user:password@localhost:5432/aisurvey_test?schema=public"
+      NEXTAUTH_SECRET: "ci-dummy-secret"
+      NEXTAUTH_URL: "http://localhost:3000"
+      ABACUSAI_API_KEY: "ci-dummy-key"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Enable Corepack (Yarn)
+        run: corepack enable
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Prisma generate
+        run: npx prisma generate
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Lint
+        # Non-blocking: repo currently has an ESLint 9 / `next lint` (Next 14)
+        # option incompatibility that must be resolved separately.
+        continue-on-error: true
+        run: yarn lint
+
+      - name: Run tests
+        run: yarn test --ci

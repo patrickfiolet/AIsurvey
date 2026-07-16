@@ -22,28 +22,48 @@ export async function GET(request: NextRequest) {
       where,
       include: {
         metadata: true,
-        entities: true,
+        extractedEntities: true,
         survey: { select: { title: true, templateId: true } },
       },
       orderBy: { createdAt: 'desc' },
     })
 
+    // ConversationMetadata is stored as key/value rows; build a typed lookup.
+    const buildMetadataLookup = (rows: { metadataKey: string; metadataValue: string }[]) => {
+      const map = new Map(rows.map((m) => [m.metadataKey, m.metadataValue]))
+      const num = (key: string) => Number(map.get(key) ?? 0) || 0
+      const list = (key: string): string[] => {
+        const raw = map.get(key)
+        if (!raw) return []
+        try {
+          const parsed = JSON.parse(raw)
+          return Array.isArray(parsed) ? parsed.map(String) : []
+        } catch {
+          return raw.split(',').map((s) => s.trim()).filter(Boolean)
+        }
+      }
+      return { num, list }
+    }
+
     // Calculate aggregate scores
-    const scoredConversations = conversations.map((conv) => ({
-      id: conv.id,
-      respondentName: conv.respondentName,
-      surveyTitle: conv.survey.title,
-      templateId: conv.survey.templateId,
-      isCompleted: conv.isCompleted,
-      tacitKnowledgeScore: conv.metadata?.tacitKnowledgeScore || 0,
-      knowledgeDomains: conv.metadata?.knowledgeDomains || [],
-      uniqueInsightsCount: conv.metadata?.uniqueInsightsCount || 0,
-      decisionContextCount: conv.metadata?.decisionContextCount || 0,
-      workaroundCount: conv.metadata?.workaroundCount || 0,
-      exceptionCount: conv.metadata?.exceptionCount || 0,
-      entityCount: conv.entities.length,
-      createdAt: conv.createdAt,
-    }))
+    const scoredConversations = conversations.map((conv) => {
+      const meta = buildMetadataLookup(conv.metadata)
+      return {
+        id: conv.id,
+        respondentName: conv.respondentName,
+        surveyTitle: conv.survey?.title ?? null,
+        templateId: conv.survey?.templateId ?? null,
+        isCompleted: conv.isCompleted,
+        tacitKnowledgeScore: meta.num('tacitKnowledgeScore'),
+        knowledgeDomains: meta.list('knowledgeDomains'),
+        uniqueInsightsCount: meta.num('uniqueInsightsCount'),
+        decisionContextCount: meta.num('decisionContextCount'),
+        workaroundCount: meta.num('workaroundCount'),
+        exceptionCount: meta.num('exceptionCount'),
+        entityCount: conv.extractedEntities.length,
+        createdAt: conv.createdAt,
+      }
+    })
 
     // Aggregate statistics
     const completedConversations = scoredConversations.filter((c) => c.isCompleted)
