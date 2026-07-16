@@ -104,3 +104,113 @@ export function getNextPhase(currentPhase: string): string | null {
   if (idx < 0 || idx >= (questionFlow?.length ?? 0) - 1) return null
   return questionFlow?.[idx + 1]?.phase ?? null
 }
+
+// ============================================================
+// Survey templates & response-quality analysis (v3.0)
+// ============================================================
+import type { SurveyTemplate, QuestionFlowItem as TemplateQuestionFlowItem } from './types'
+import { generalKnowledgeQuestionFlow } from './question-flows/general-knowledge'
+import { sapQuestionFlow } from './question-flows/sap-knowledge'
+import { healthcareQuestionFlow } from './question-flows/healthcare'
+import { governmentQuestionFlow } from './question-flows/government'
+import { itOperationsQuestionFlow } from './question-flows/it-operations'
+import { extractEntitiesFromText } from './ai-helper'
+
+/**
+ * The default template flow (general knowledge retention, 10 questions).
+ */
+export const defaultQuestionFlow: TemplateQuestionFlowItem[] = generalKnowledgeQuestionFlow
+
+/**
+ * All survey templates that can be selected when creating a survey.
+ */
+export const availableTemplates: SurveyTemplate[] = [
+  {
+    id: 'general-knowledge',
+    name: 'General Knowledge Retention',
+    description:
+      'Broadly applicable template to capture tacit knowledge, decision context and knowledge networks across any organization.',
+    category: 'general',
+    questionFlow: generalKnowledgeQuestionFlow,
+  },
+  {
+    id: 'sap-knowledge',
+    name: 'SAP Knowledge Extraction',
+    description:
+      'Targeted at SAP consultants, admins and key users. Captures custom configurations, workarounds and implementation decisions.',
+    category: 'enterprise',
+    questionFlow: sapQuestionFlow,
+  },
+  {
+    id: 'healthcare',
+    name: 'Healthcare Knowledge Retention',
+    description:
+      'Designed for healthcare professionals to capture clinical decision-making, protocols and patient-care knowledge.',
+    category: 'healthcare',
+    questionFlow: healthcareQuestionFlow,
+  },
+  {
+    id: 'government',
+    name: 'Government & Public Sector',
+    description:
+      'Focused on policy knowledge, regulatory context and institutional memory within public sector organizations.',
+    category: 'government',
+    questionFlow: governmentQuestionFlow,
+  },
+  {
+    id: 'it-operations',
+    name: 'IT Operations & Infrastructure',
+    description:
+      'Captures operational knowledge around infrastructure, incident response and undocumented system dependencies.',
+    category: 'it',
+    questionFlow: itOperationsQuestionFlow,
+  },
+]
+
+export type ResponseQuality = 'low' | 'medium' | 'high'
+
+export interface ResponseQualityResult {
+  quality: ResponseQuality
+  wordCount: number
+  entityCount: number
+}
+
+/**
+ * Heuristic assessment of how information-rich a respondent's answer is.
+ * Combines answer length with the number of detected entities to decide
+ * whether the answer is shallow (low), reasonable (medium) or rich (high).
+ */
+export function analyzeResponseQuality(
+  message: string,
+  _question?: TemplateQuestionFlowItem
+): ResponseQualityResult {
+  const trimmed = (message ?? '').trim()
+  const wordCount = trimmed.length === 0 ? 0 : trimmed.split(/\s+/).length
+  const entityCount = trimmed.length === 0 ? 0 : extractEntitiesFromText(trimmed).length
+
+  let quality: ResponseQuality
+  if (wordCount < 4) {
+    quality = 'low'
+  } else if (wordCount < 15) {
+    quality = entityCount >= 2 ? 'high' : 'medium'
+  } else {
+    quality = 'high'
+  }
+
+  return { quality, wordCount, entityCount }
+}
+
+/** Maximum number of automated follow-up probes per question. */
+export const MAX_FOLLOW_UPS = 2
+
+/**
+ * Decide whether the voice/text agent should probe further given the
+ * assessed quality of the last answer and how many follow-ups were already
+ * asked for the current question.
+ */
+export function shouldProbe(quality: ResponseQuality, followUpCount: number): boolean {
+  if (followUpCount >= MAX_FOLLOW_UPS) return false
+  if (quality === 'low') return true
+  if (quality === 'medium' && followUpCount === 0) return true
+  return false
+}

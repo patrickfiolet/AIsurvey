@@ -18,16 +18,10 @@ export async function GET() {
   try {
     const profiles = await prisma.expertProfile.findMany({
       include: {
-        sessions: {
-          select: {
-            id: true,
-            isCompleted: true,
-            createdAt: true,
-            metadata: { select: { tacitKnowledgeScore: true } },
-          },
-          orderBy: { createdAt: 'desc' },
+        knowledgeNodes: {
+          select: { id: true, label: true, nodeType: true, confidence: true },
         },
-        _count: { select: { sessions: true, knowledgeNodes: true } },
+        _count: { select: { knowledgeNodes: true } },
       },
       orderBy: { updatedAt: 'desc' },
     })

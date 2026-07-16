@@ -30,6 +30,8 @@ model Survey {
   isActive            Boolean              @default(true)
   isAnonymous         Boolean              @default(false)
   surveyType          SurveyType           @default(STATIC)
+  templateId          String?
+  templateName        String?
   createdById         Int?
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
@@ -198,7 +200,7 @@ model ConversationMetadata {
 
 model AgentCall {
   id              Int                @id @default(autoincrement())
-  surveyId        Int
+  surveyId        Int?
   userId          Int?
   vapiCallId      String?            @unique
   firstName       String?
@@ -208,12 +210,16 @@ model AgentCall {
   challenges      String?            @db.Text
   tomorrowActions String?            @db.Text
   transcript      String?            @db.Text
+  summary         String?            @db.Text
+  recordingUrl    String?
+  costBreakdown   Json?
+  vapiMetadata    Json?
   duration        Int?
   status          CallStatus         @default(IN_PROGRESS)
   metadata        Json?
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt
-  survey          Survey             @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  survey          Survey?            @relation(fields: [surveyId], references: [id], onDelete: SetNull)
   user            User?              @relation(fields: [userId], references: [id])
   answers         VoiceAgentAnswer[]
 
@@ -249,6 +255,79 @@ model DynamicTranslationCache {
   @@index([sourceHash])
   @@index([targetLang])
   @@map("dynamic_translation_cache")
+}
+
+// ============================================================
+// Knowledge Graph (v3.0) — previously referenced in code but
+// missing from the schema, which broke the Prisma client types.
+// ============================================================
+model KnowledgeNode {
+  id              Int             @id @default(autoincrement())
+  nodeType        String
+  label           String
+  description     String?         @db.Text
+  domain          String?
+  confidence      Float           @default(0.8)
+  metadata        Json?
+  expertProfileId Int?
+  expertProfile   ExpertProfile?  @relation(fields: [expertProfileId], references: [id], onDelete: SetNull)
+  edgesFrom       KnowledgeEdge[] @relation("edgeFrom")
+  edgesTo         KnowledgeEdge[] @relation("edgeTo")
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([nodeType])
+  @@index([domain])
+  @@index([expertProfileId])
+  @@map("knowledge_nodes")
+}
+
+model KnowledgeEdge {
+  id         Int           @id @default(autoincrement())
+  edgeType   String
+  fromNodeId Int
+  toNodeId   Int
+  label      String?
+  weight     Float         @default(1.0)
+  metadata   Json?
+  fromNode   KnowledgeNode @relation("edgeFrom", fields: [fromNodeId], references: [id], onDelete: Cascade)
+  toNode     KnowledgeNode @relation("edgeTo", fields: [toNodeId], references: [id], onDelete: Cascade)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  @@index([fromNodeId])
+  @@index([toNodeId])
+  @@index([edgeType])
+  @@map("knowledge_edges")
+}
+
+model ExpertProfile {
+  id             Int             @id @default(autoincrement())
+  name           String
+  email          String?
+  role           String?
+  department     String?
+  domain         String?
+  metadata       Json?
+  knowledgeNodes KnowledgeNode[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@map("expert_profiles")
+}
+
+model KnowledgeOSEvent {
+  id        Int      @id @default(autoincrement())
+  eventType String
+  source    String
+  payload   Json?
+  status    String   @default("pending")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([eventType])
+  @@index([status])
+  @@map("knowledge_os_events")
 }
 
 enum SurveyType {

@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
   try {
     const analyses = await prisma.analysis.findMany({
       where: surveyId ? { surveyId: parseInt(surveyId) } : {},
-      orderBy: { createdAt: 'desc' },
+      orderBy: { generatedAt: 'desc' },
     })
     return NextResponse.json({ analyses })
   } catch (error) {

@@ -10,16 +10,10 @@ export const dynamic = 'force-dynamic'
 export async function POST(_request: NextRequest) {
   try {
     const questions = await prisma.voiceAgentQuestion.findMany({
-      where: { isActive: true },
       orderBy: { order: 'asc' },
     })
 
-    const questionsPrompt = questions
-      .map(
-        (q, i) =>
-          `${i + 1}. ${q.questionText}${q.followUpPrompt ? `\n   Follow-up: ${q.followUpPrompt}` : ''}`
-      )
-      .join('\n')
+    const questionsPrompt = questions.map((q, i) => `${i + 1}. ${q.title}`).join('\n')
 
     const assistantConfig = {
       name: 'AI Survey Assistant',
